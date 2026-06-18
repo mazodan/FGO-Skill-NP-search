@@ -1,0 +1,6 @@
+{
+  "name": "Chaldea Planner",
+  "description": "FGO planner app to store and find Servants effective against specific attributes, alignments, genders, and traits.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
