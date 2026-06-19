@@ -48,7 +48,8 @@ import com.example.ui.theme.*
 @Composable
 fun HomeScreen(
     viewModel: ServantViewModel,
-    onAddClick: () -> Unit
+    onAddClick: () -> Unit,
+    onEditClick: (Int) -> Unit
 ) {
     val servants by viewModel.servants.collectAsStateWithLifecycle()
     val searchFilters by viewModel.searchFilters.collectAsStateWithLifecycle()
@@ -311,6 +312,7 @@ fun HomeScreen(
                     items(servants, key = { it.id }) { servant ->
                         ServantCard(
                             servant = servant,
+                            onEdit = { onEditClick(servant.id) },
                             onDelete = { viewModel.deleteServant(servant.id) }
                         )
                     }
@@ -562,7 +564,7 @@ fun MultiFilterDropdown(
 }
 
 @Composable
-fun ServantCard(servant: Servant, onDelete: () -> Unit) {
+fun ServantCard(servant: Servant, onEdit: () -> Unit, onDelete: () -> Unit) {
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showDetailsDialog by remember { mutableStateOf(false) }
 
@@ -792,13 +794,22 @@ fun ServantCard(servant: Servant, onDelete: () -> Unit) {
                 Text(text = "Skills: $skillText", fontSize = 11.sp, color = FilterUnselectedText, maxLines = 1)
             }
             Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = "DELETE",
-                fontSize = 11.sp,
-                color = TagRedText,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.clickable { showDeleteDialog = true }.padding(8.dp)
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = "EDIT",
+                    fontSize = 11.sp,
+                    color = FilterUnselectedText,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.clickable { onEdit() }.padding(8.dp)
+                )
+                Text(
+                    text = "DELETE",
+                    fontSize = 11.sp,
+                    color = TagRedText,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.clickable { showDeleteDialog = true }.padding(8.dp)
+                )
+            }
         }
     }
 }

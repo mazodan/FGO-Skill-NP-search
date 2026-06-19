@@ -41,12 +41,25 @@ class MainActivity : ComponentActivity() {
             composable("home") {
                 HomeScreen(
                     viewModel = viewModel,
-                    onAddClick = { navController.navigate("add") }
+                    onAddClick = { navController.navigate("add") },
+                    onEditClick = { servantId -> navController.navigate("edit/$servantId") }
                 )
             }
             composable("add") {
                 AddServantScreen(
                     viewModel = viewModel,
+                    servantId = null,
+                    onBack = { navController.popBackStack() }
+                )
+            }
+            composable(
+                route = "edit/{servantId}",
+                arguments = listOf(androidx.navigation.navArgument("servantId") { type = androidx.navigation.NavType.IntType })
+            ) { backStackEntry ->
+                val servantId = backStackEntry.arguments?.getInt("servantId")
+                AddServantScreen(
+                    viewModel = viewModel,
+                    servantId = servantId,
                     onBack = { navController.popBackStack() }
                 )
             }

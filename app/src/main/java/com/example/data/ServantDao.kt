@@ -14,6 +14,9 @@ interface ServantDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertServant(servant: Servant)
 
+    @androidx.room.Update
+    suspend fun updateServant(servant: Servant)
+
     @Query("DELETE FROM servants WHERE id = :id")
     suspend fun deleteServantById(id: Int)
 

@@ -157,6 +157,12 @@ class ServantViewModel(private val repository: ServantRepository) : ViewModel() 
         }
     }
 
+    fun updateServant(servant: Servant) {
+        viewModelScope.launch {
+            repository.update(servant)
+        }
+    }
+
     fun deleteServant(id: Int) {
         viewModelScope.launch {
             repository.delete(id)

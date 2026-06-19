@@ -22,10 +22,12 @@ import com.example.data.Skill
 @Composable
 fun AddServantScreen(
     viewModel: ServantViewModel,
+    servantId: Int?,
     onBack: () -> Unit
 ) {
     val traits by viewModel.traits.collectAsStateWithLifecycle()
     val alignments by viewModel.alignments.collectAsStateWithLifecycle()
+    val servants by viewModel.servants.collectAsStateWithLifecycle()
 
     var name by remember { mutableStateOf("") }
     var iconUrl by remember { mutableStateOf("") }
@@ -47,10 +49,54 @@ fun AddServantScreen(
 
     val skills = remember { mutableStateListOf<SkillInput>() }
 
+    LaunchedEffect(servantId, servants) {
+        if (servantId != null) {
+            val s = servants.find { it.id == servantId }
+            if (s != null && name.isEmpty()) { // Only load if not already loaded
+                name = s.name
+                iconUrl = s.iconUrl
+                rarity = s.rarity
+                servantClass = s.servantClass
+                gender = s.gender
+                attribute = s.attribute
+                
+                selectedTraits.clear()
+                selectedTraits.addAll(s.traits)
+                
+                selectedAlignments.clear()
+                selectedAlignments.addAll(s.alignments)
+                
+                npName = s.noblePhantasm.name
+                npDesc = s.noblePhantasm.description
+                npBonusGender = s.noblePhantasm.effectiveGenders.firstOrNull() ?: ""
+                npBonusAttr.clear()
+                npBonusAttr.addAll(s.noblePhantasm.effectiveAttributes)
+                npBonusClass = s.noblePhantasm.effectiveClasses.joinToString(", ")
+                npBonusAlign.clear()
+                npBonusAlign.addAll(s.noblePhantasm.effectiveAlignments)
+                npBonusTraits.clear()
+                npBonusTraits.addAll(s.noblePhantasm.effectiveTraits)
+                
+                skills.clear()
+                s.skills.forEach { sk ->
+                    val si = SkillInput()
+                    si.name = sk.name
+                    si.desc = sk.description
+                    si.bonusGender = sk.effectiveGenders.firstOrNull() ?: ""
+                    si.bonusAttr.addAll(sk.effectiveAttributes)
+                    si.bonusClass = sk.effectiveClasses.joinToString(", ")
+                    si.bonusAlign.addAll(sk.effectiveAlignments)
+                    si.bonusTraits.addAll(sk.effectiveTraits)
+                    skills.add(si)
+                }
+            }
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Add Servant") },
+                title = { Text(if (servantId != null) "Edit Servant" else "Add Servant") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
@@ -133,18 +179,23 @@ fun AddServantScreen(
                         )
                     }
                     val servant = Servant(
+                        id = servantId ?: 0,
                         name = name, iconUrl = iconUrl, rarity = rarity, servantClass = servantClass,
                         gender = gender, attribute = attribute,
-                        traits = selectedTraits, alignments = selectedAlignments,
+                        traits = selectedTraits.toList(), alignments = selectedAlignments.toList(),
                         noblePhantasm = np, skills = sList
                     )
-                    viewModel.addServant(servant)
+                    if (servantId != null) {
+                        viewModel.updateServant(servant)
+                    } else {
+                        viewModel.addServant(servant)
+                    }
                     onBack()
                 },
                 modifier = Modifier.fillMaxWidth(),
                 enabled = name.isNotBlank()
             ) {
-                Text("Save Servant")
+                Text(if (servantId != null) "Update Servant" else "Save Servant")
             }
             Spacer(modifier = Modifier.height(32.dp))
         }

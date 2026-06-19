@@ -11,6 +11,10 @@ class ServantRepository(private val servantDao: ServantDao) {
         servantDao.insertServant(servant)
     }
 
+    suspend fun update(servant: Servant) {
+        servantDao.updateServant(servant)
+    }
+
     suspend fun delete(id: Int) {
         servantDao.deleteServantById(id)
     }
