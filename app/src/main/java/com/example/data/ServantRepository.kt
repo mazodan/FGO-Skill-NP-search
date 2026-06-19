@@ -19,12 +19,20 @@ class ServantRepository(private val servantDao: ServantDao) {
         servantDao.insertTrait(trait)
     }
 
+    suspend fun updateTrait(trait: TraitEntity) {
+        servantDao.updateTrait(trait)
+    }
+
     suspend fun deleteTrait(id: Int) {
         servantDao.deleteTraitById(id)
     }
 
     suspend fun insertAlignment(alignment: AlignmentEntity) {
         servantDao.insertAlignment(alignment)
+    }
+
+    suspend fun updateAlignment(alignment: AlignmentEntity) {
+        servantDao.updateAlignment(alignment)
     }
 
     suspend fun deleteAlignment(id: Int) {

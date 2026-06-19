@@ -23,6 +23,9 @@ interface ServantDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertTrait(trait: TraitEntity)
 
+    @androidx.room.Update
+    suspend fun updateTrait(trait: TraitEntity)
+
     @Query("DELETE FROM traits WHERE id = :id")
     suspend fun deleteTraitById(id: Int)
 
@@ -31,6 +34,9 @@ interface ServantDao {
 
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertAlignment(alignment: AlignmentEntity)
+
+    @androidx.room.Update
+    suspend fun updateAlignment(alignment: AlignmentEntity)
 
     @Query("DELETE FROM alignments WHERE id = :id")
     suspend fun deleteAlignmentById(id: Int)

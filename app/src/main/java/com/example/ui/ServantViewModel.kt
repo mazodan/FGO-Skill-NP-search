@@ -145,6 +145,12 @@ class ServantViewModel(private val repository: ServantRepository) : ViewModel() 
         }
     }
 
+    fun updateTrait(id: Int, name: String) {
+        viewModelScope.launch {
+            repository.updateTrait(TraitEntity(id = id, name = name.trim()))
+        }
+    }
+
     fun deleteTrait(id: Int) {
         viewModelScope.launch {
             repository.deleteTrait(id)
@@ -154,6 +160,12 @@ class ServantViewModel(private val repository: ServantRepository) : ViewModel() 
     fun addAlignment(name: String) {
         viewModelScope.launch {
             repository.insertAlignment(AlignmentEntity(name = name.trim()))
+        }
+    }
+
+    fun updateAlignment(id: Int, name: String) {
+        viewModelScope.launch {
+            repository.updateAlignment(AlignmentEntity(id = id, name = name.trim()))
         }
     }
 

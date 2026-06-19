@@ -30,6 +30,11 @@ import coil.compose.AsyncImage
 import com.example.data.Servant
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Build
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -47,17 +52,60 @@ fun HomeScreen(
     val alignments by viewModel.alignments.collectAsStateWithLifecycle()
 
     var showFilters by remember { mutableStateOf(false) }
+    var showTraitsDbDialog by remember { mutableStateOf(false) }
+    var showAlignmentsDbDialog by remember { mutableStateOf(false) }
+
+    if (showTraitsDbDialog) {
+        DatabaseManagerDialog(
+            title = "Traits Database",
+            items = traits.map { Pair(it.id, it.name) },
+            onAdd = { viewModel.addTrait(it) },
+            onUpdate = { id, name -> viewModel.updateTrait(id, name) },
+            onDelete = { viewModel.deleteTrait(it) },
+            onDismiss = { showTraitsDbDialog = false }
+        )
+    }
+
+    if (showAlignmentsDbDialog) {
+        DatabaseManagerDialog(
+            title = "Alignments Database",
+            items = alignments.map { Pair(it.id, it.name) },
+            onAdd = { viewModel.addAlignment(it) },
+            onUpdate = { id, name -> viewModel.updateAlignment(id, name) },
+            onDelete = { viewModel.deleteAlignment(it) },
+            onDismiss = { showAlignmentsDbDialog = false }
+        )
+    }
 
     Scaffold(
         containerColor = HighDensityBg,
         floatingActionButton = {
-            FloatingActionButton(
-                onClick = onAddClick,
-                containerColor = FabBg,
-                contentColor = FabText,
-                shape = RoundedCornerShape(16.dp)
+            Column(
+                horizontalAlignment = Alignment.End,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                Icon(Icons.Filled.Add, contentDescription = "Add Servant")
+                SmallFloatingActionButton(
+                    onClick = { showTraitsDbDialog = true },
+                    containerColor = FilterSelectedBg,
+                    contentColor = FilterSelectedText
+                ) {
+                    Icon(Icons.Filled.Star, contentDescription = "Traits Database")
+                }
+                SmallFloatingActionButton(
+                    onClick = { showAlignmentsDbDialog = true },
+                    containerColor = FilterSelectedBg,
+                    contentColor = FilterSelectedText
+                ) {
+                    Icon(Icons.Filled.Build, contentDescription = "Alignments Database")
+                }
+                FloatingActionButton(
+                    onClick = onAddClick,
+                    containerColor = FabBg,
+                    contentColor = FabText,
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Icon(Icons.Filled.Add, contentDescription = "Add Servant")
+                }
             }
         }
     ) { padding ->
@@ -257,7 +305,8 @@ fun FilterDropdown(
             onDismissRequest = {
                 expanded = false
                 searchQuery = ""
-            }
+            },
+            modifier = Modifier.exposedDropdownSize(matchTextFieldWidth = false).widthIn(min = 200.dp)
         ) {
             if (searchable) {
                 Box(modifier = Modifier.padding(8.dp)) {
@@ -390,7 +439,8 @@ fun MultiFilterDropdown(
             onDismissRequest = {
                 expanded = false
                 searchQuery = ""
-            }
+            },
+            modifier = Modifier.exposedDropdownSize(matchTextFieldWidth = false).widthIn(min = 240.dp)
         ) {
             if (searchable) {
                 Box(modifier = Modifier.padding(8.dp)) {
@@ -597,4 +647,91 @@ fun TagItem(text: String, bg: Color, fg: Color) {
             color = fg
         )
     }
+}
+
+@Composable
+fun DatabaseManagerDialog(
+    title: String,
+    items: List<Pair<Int, String>>,
+    onAdd: (String) -> Unit,
+    onUpdate: (Int, String) -> Unit,
+    onDelete: (Int) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var newItemName by remember { mutableStateOf("") }
+    var editingItemId by remember { mutableStateOf<Int?>(null) }
+    var editingItemName by remember { mutableStateOf("") }
+    
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    OutlinedTextField(
+                        value = newItemName,
+                        onValueChange = { newItemName = it },
+                        label = { Text("New Item") },
+                        modifier = Modifier.weight(1f),
+                        singleLine = true
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Button(onClick = {
+                        if (newItemName.isNotBlank()) {
+                            onAdd(newItemName)
+                            newItemName = ""
+                        }
+                    }) {
+                        Text("Add")
+                    }
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+                LazyColumn(modifier = Modifier.fillMaxWidth().heightIn(max = 240.dp)) {
+                    items(items, key = { it.first }) { item ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            if (editingItemId == item.first) {
+                                OutlinedTextField(
+                                    value = editingItemName,
+                                    onValueChange = { editingItemName = it },
+                                    modifier = Modifier.weight(1f),
+                                    singleLine = true
+                                )
+                                IconButton(onClick = {
+                                    if (editingItemName.isNotBlank()) {
+                                        onUpdate(item.first, editingItemName)
+                                        editingItemId = null
+                                    }
+                                }) {
+                                    Icon(Icons.Filled.Check, contentDescription = "Save", tint = MaterialTheme.colorScheme.primary)
+                                }
+                                IconButton(onClick = { editingItemId = null }) {
+                                    Icon(Icons.Filled.Clear, contentDescription = "Cancel", tint = MaterialTheme.colorScheme.error)
+                                }
+                            } else {
+                                Text(text = item.second, modifier = Modifier.weight(1f))
+                                IconButton(onClick = {
+                                    editingItemId = item.first
+                                    editingItemName = item.second
+                                }) {
+                                    Icon(Icons.Filled.Edit, contentDescription = "Edit", tint = MaterialTheme.colorScheme.primary)
+                                }
+                                IconButton(onClick = { onDelete(item.first) }) {
+                                    Icon(Icons.Filled.Delete, contentDescription = "Delete", tint = TagRedText)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Close")
+            }
+        }
+    )
 }
