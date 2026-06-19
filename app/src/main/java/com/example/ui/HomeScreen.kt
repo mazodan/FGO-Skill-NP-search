@@ -239,9 +239,9 @@ fun ServantCard(servant: Servant, onDelete: () -> Unit) {
                 }
                 
                 val alignText = buildString {
-                    val attrs = servant.effectiveAttributes.joinToString(", ")
-                    val align = servant.effectiveAlignments.joinToString(", ")
-                    val gen = servant.effectiveGenders.joinToString(", ")
+                    val attrs = servant.attribute
+                    val align = servant.alignments.joinToString(", ")
+                    val gen = servant.gender
                     
                     if (attrs.isNotBlank()) append(attrs)
                     if (align.isNotBlank()) { if (isNotEmpty()) append(" • "); append(align) }
@@ -255,34 +255,17 @@ fun ServantCard(servant: Servant, onDelete: () -> Unit) {
                     modifier = Modifier.padding(top = 2.dp)
                 )
 
-                // Tags
-                @Composable
-                fun Tag(text: String, bg: Color, fg: Color) {
-                    Box(
-                        modifier = Modifier
-                            .background(bg, RoundedCornerShape(4.dp))
-                            .padding(horizontal = 8.dp, vertical = 2.dp)
-                    ) {
-                        Text(
-                            text = text.uppercase(),
-                            fontSize = 9.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = fg
-                        )
-                    }
-                }
-
                 @OptIn(ExperimentalLayoutApi::class)
                 FlowRow(
                     modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                     verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    val traits = servant.effectiveTraits
+                    val traits = servant.traits
                     traits.forEachIndexed { index, trait ->
                         val bg = if (index % 3 == 2) TagRedBg else TagBlueBg
                         val fg = if (index % 3 == 2) TagRedText else TagBlueText
-                        Tag(text = trait, bg = bg, fg = fg)
+                        TagItem(text = trait, bg = bg, fg = fg)
                     }
                 }
             }
@@ -295,8 +278,9 @@ fun ServantCard(servant: Servant, onDelete: () -> Unit) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                Text(text = "NP: ${servant.noblePhantasm}", fontSize = 12.sp, color = HighDensityText)
-                Text(text = "Skills: ${servant.skills}", fontSize = 11.sp, color = FilterUnselectedText, maxLines = 1)
+                Text(text = "NP: ${servant.noblePhantasm.name}", fontSize = 12.sp, color = HighDensityText)
+                val skillText = servant.skills.joinToString(", ") { it.name }
+                Text(text = "Skills: $skillText", fontSize = 11.sp, color = FilterUnselectedText, maxLines = 1)
             }
             Spacer(modifier = Modifier.width(8.dp))
             Text(
@@ -307,5 +291,21 @@ fun ServantCard(servant: Servant, onDelete: () -> Unit) {
                 modifier = Modifier.clickable { onDelete() }.padding(8.dp)
             )
         }
+    }
+}
+
+@Composable
+fun TagItem(text: String, bg: Color, fg: Color) {
+    Box(
+        modifier = Modifier
+            .background(bg, RoundedCornerShape(4.dp))
+            .padding(horizontal = 8.dp, vertical = 2.dp)
+    ) {
+        Text(
+            text = text.uppercase(),
+            fontSize = 9.sp,
+            fontWeight = FontWeight.Bold,
+            color = fg
+        )
     }
 }
