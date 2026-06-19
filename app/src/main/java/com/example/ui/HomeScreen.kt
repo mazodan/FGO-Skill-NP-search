@@ -28,6 +28,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.example.data.Servant
+import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.List
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
@@ -96,6 +97,11 @@ fun HomeScreen(
                         innerTextField()
                     }
                 )
+                if (searchFilters != com.example.ui.SearchFilters()) {
+                    IconButton(onClick = { viewModel.updateSearchFilters(com.example.ui.SearchFilters()) }) {
+                        Icon(Icons.Filled.Clear, contentDescription = "Clear all", tint = FilterUnselectedText)
+                    }
+                }
                 IconButton(onClick = { showFilters = !showFilters }) {
                     Icon(Icons.Filled.List, contentDescription = "Advanced Filters", tint = if (showFilters) FilterSelectedBg else FilterUnselectedText)
                 }
@@ -104,7 +110,18 @@ fun HomeScreen(
             // Quick Filters
             if (showFilters) {
                 Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
-                    Text("Bonus Damage Targets", style = MaterialTheme.typography.labelMedium, color = FilterUnselectedText)
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                        Text("Bonus Damage Targets", style = MaterialTheme.typography.labelMedium, color = FilterUnselectedText)
+                        if (searchFilters != com.example.ui.SearchFilters()) {
+                            TextButton(
+                                onClick = { viewModel.updateSearchFilters(com.example.ui.SearchFilters()) },
+                                contentPadding = PaddingValues(0.dp),
+                                modifier = Modifier.height(24.dp)
+                            ) {
+                                Text("Clear All", fontSize = 12.sp)
+                            }
+                        }
+                    }
                     Spacer(modifier = Modifier.height(8.dp))
                     
                     FlowRow(
