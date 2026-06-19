@@ -46,6 +46,7 @@ data class Servant(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
     val name: String,
     val iconUrl: String,
+    val rarity: String = "C",
     
     val servantClass: String = "Unknown",
     val attribute: String = "",

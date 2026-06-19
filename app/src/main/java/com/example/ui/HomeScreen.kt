@@ -35,9 +35,13 @@ import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.AccountBox
+import androidx.compose.ui.zIndex
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.ui.window.Dialog
 import com.example.ui.theme.*
 
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
@@ -160,13 +164,30 @@ fun HomeScreen(
                 Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                         Text("Bonus Damage Targets", style = MaterialTheme.typography.labelMedium, color = FilterUnselectedText)
-                        if (searchFilters != com.example.ui.SearchFilters()) {
-                            TextButton(
-                                onClick = { viewModel.updateSearchFilters(com.example.ui.SearchFilters()) },
-                                contentPadding = PaddingValues(0.dp),
-                                modifier = Modifier.height(24.dp)
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = if (searchFilters.isOrConditional) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.secondaryContainer,
+                                modifier = Modifier.clickable { 
+                                    viewModel.updateSearchFilters(searchFilters.copy(isOrConditional = !searchFilters.isOrConditional)) 
+                                }
                             ) {
-                                Text("Clear All", fontSize = 12.sp)
+                                Text(
+                                    text = if (searchFilters.isOrConditional) "OR" else "AND",
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (searchFilters.isOrConditional) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSecondaryContainer,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                )
+                            }
+                            if (searchFilters != com.example.ui.SearchFilters()) {
+                                TextButton(
+                                    onClick = { viewModel.updateSearchFilters(com.example.ui.SearchFilters()) },
+                                    contentPadding = PaddingValues(0.dp),
+                                    modifier = Modifier.height(24.dp)
+                                ) {
+                                    Text("Clear All", fontSize = 12.sp)
+                                }
                             }
                         }
                     }
@@ -231,11 +252,53 @@ fun HomeScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "${servants.size} Servants",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = FilterUnselectedText
+                )
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = if (searchFilters.sortByRarity) FilterSelectedBg else Color.Transparent,
+                    border = if (searchFilters.sortByRarity) null else BorderStroke(1.dp, SearchBorder),
+                    modifier = Modifier.clickable { 
+                        viewModel.updateSearchFilters(searchFilters.copy(sortByRarity = !searchFilters.sortByRarity)) 
+                    }
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Star,
+                            contentDescription = "Sort by Rarity",
+                            modifier = Modifier.size(14.dp),
+                            tint = if (searchFilters.sortByRarity) FilterSelectedText else FilterUnselectedText
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "Sort by Rarity",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = if (searchFilters.sortByRarity) FilterSelectedText else FilterUnselectedText
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
             // Main Content: Servant List
+            val hasFilters = searchFilters.query.isNotEmpty() || searchFilters.targetGender.isNotBlank() || searchFilters.targetAttribute.isNotBlank() || searchFilters.targetClass.isNotBlank() || searchFilters.targetAlignment.isNotEmpty() || searchFilters.targetTrait.isNotEmpty() || searchFilters.sortByRarity
             if (servants.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text(
-                        text = if (searchFilters.query.isNotEmpty() || showFilters) "No servants found matching criteria." else "No servants defined yet.",
+                        text = if (hasFilters) "No servants found matching criteria." else "Enter a search query or apply filters to view servants.",
                         style = MaterialTheme.typography.bodyLarge,
                         color = FilterUnselectedText
                     )
@@ -500,49 +563,156 @@ fun MultiFilterDropdown(
 
 @Composable
 fun ServantCard(servant: Servant, onDelete: () -> Unit) {
+    var showDeleteDialog by remember { mutableStateOf(false) }
+    var showDetailsDialog by remember { mutableStateOf(false) }
+
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text("Confirm Deletion") },
+            text = { Text("Are you sure you want to delete ${servant.name}?") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        onDelete()
+                        showDeleteDialog = false
+                    }
+                ) {
+                    Text("Delete", color = TagRedText)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
+    if (showDetailsDialog) {
+        Dialog(onDismissRequest = { showDetailsDialog = false }) {
+            Surface(
+                shape = RoundedCornerShape(16.dp),
+                color = Color.White
+            ) {
+                LazyColumn(modifier = Modifier.padding(16.dp).fillMaxWidth()) {
+                    item {
+                        Text(text = "Servant Details", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                        Spacer(modifier = Modifier.height(16.dp))
+                        
+                        Text(text = "Name: ${servant.name}", style = MaterialTheme.typography.bodyLarge)
+                        Text(text = "Class: ${servant.servantClass}", style = MaterialTheme.typography.bodyMedium)
+                        
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(text = "Noble Phantasm", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        Text(text = servant.noblePhantasm.name, fontSize = 14.sp)
+                        val npTargets = buildString {
+                            if (servant.noblePhantasm.effectiveGenders.isNotEmpty()) append("Genders: ${servant.noblePhantasm.effectiveGenders.joinToString()} ")
+                            if (servant.noblePhantasm.effectiveAttributes.isNotEmpty()) append("Attributes: ${servant.noblePhantasm.effectiveAttributes.joinToString()} ")
+                            if (servant.noblePhantasm.effectiveClasses.isNotEmpty()) append("Classes: ${servant.noblePhantasm.effectiveClasses.joinToString()} ")
+                            if (servant.noblePhantasm.effectiveAlignments.isNotEmpty()) append("Alignments: ${servant.noblePhantasm.effectiveAlignments.joinToString()} ")
+                            if (servant.noblePhantasm.effectiveTraits.isNotEmpty()) append("Traits: ${servant.noblePhantasm.effectiveTraits.joinToString()} ")
+                        }.trim()
+                        Text(
+                            text = "Bonus Damage Targets: ${if(npTargets.isEmpty()) "None" else npTargets}",
+                            fontSize = 12.sp, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold
+                        )
+                        
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(text = "Skills", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    }
+                    
+                    items(servant.skills) { skill ->
+                        Text(text = skill.name, fontSize = 14.sp, modifier = Modifier.padding(top = 4.dp))
+                        val skillTargets = buildString {
+                            if (skill.effectiveGenders.isNotEmpty()) append("Genders: ${skill.effectiveGenders.joinToString()} ")
+                            if (skill.effectiveAttributes.isNotEmpty()) append("Attributes: ${skill.effectiveAttributes.joinToString()} ")
+                            if (skill.effectiveClasses.isNotEmpty()) append("Classes: ${skill.effectiveClasses.joinToString()} ")
+                            if (skill.effectiveAlignments.isNotEmpty()) append("Alignments: ${skill.effectiveAlignments.joinToString()} ")
+                            if (skill.effectiveTraits.isNotEmpty()) append("Traits: ${skill.effectiveTraits.joinToString()} ")
+                        }.trim()
+                        if (skillTargets.isNotEmpty()) {
+                            Text(
+                                text = "Bonus Damage Targets: $skillTargets",
+                                fontSize = 12.sp, color = MaterialTheme.colorScheme.secondary, fontWeight = FontWeight.Bold
+                            )
+                        } else {
+                            Text(
+                                text = "Bonus Damage Targets: None",
+                                fontSize = 12.sp, color = MaterialTheme.colorScheme.secondary, fontWeight = FontWeight.Bold
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(4.dp))
+                    }
+
+                    item {
+                        Spacer(modifier = Modifier.height(24.dp))
+                        Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
+                            TextButton(
+                                onClick = { showDetailsDialog = false }
+                            ) {
+                                Text("Close")
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
+            .clickable { showDetailsDialog = true }
             .background(Color.White, RoundedCornerShape(16.dp))
             .border(1.dp, CardBorder, RoundedCornerShape(16.dp))
             .padding(16.dp)
     ) {
         Row(verticalAlignment = Alignment.Top) {
-            // Icon
-            Box(
-                modifier = Modifier
-                    .size(56.dp)
-                    .background(IconBgBlue, RoundedCornerShape(12.dp))
-                    .clip(RoundedCornerShape(12.dp)),
-                contentAlignment = Alignment.Center
-            ) {
-                if (servant.iconUrl.isNotBlank()) {
-                    AsyncImage(
-                        model = servant.iconUrl,
-                        contentDescription = "Servant Icon",
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop
-                    )
-                } else {
-                    Text(
-                        text = "SSR",
-                        color = Color.White,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold
-                    )
+            // Icon wrapper to allow pip to overflow slightly, or just contain it
+            Box(modifier = Modifier.size(60.dp)) {
+                Box(
+                    modifier = Modifier
+                        .size(56.dp)
+                        .align(Alignment.BottomStart)
+                        .background(IconBgBlue, RoundedCornerShape(12.dp))
+                        .clip(RoundedCornerShape(12.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (servant.iconUrl.isNotBlank()) {
+                        AsyncImage(
+                            model = servant.iconUrl,
+                            contentDescription = "Servant Icon",
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
+                        )
+                    } else {
+                        Icon(Icons.Filled.AccountBox, contentDescription = "Default Icon", tint = Color.Gray)
+                    }
                 }
                 
-                // Top-right pip
+                // Top-right pip for rarity
+                val rarityColor = when (servant.rarity) {
+                    "C", "U" -> Color(0xFFCD7F32) // Bronze
+                    "R" -> Color(0xFFC0C0C0) // Silver
+                    "SR", "SSR" -> Color(0xFFFFD700) // Gold
+                    else -> Color(0xFFC0C0C0)
+                }
                 Box(
                     modifier = Modifier
                         .align(Alignment.TopEnd)
-                        .offset(x = 4.dp, y = (-4).dp)
-                        .size(20.dp)
-                        .background(Color(0xFFFFD700), CircleShape)
-                        .border(2.dp, Color.White, CircleShape),
+                        .size(22.dp)
+                        .background(rarityColor, CircleShape)
+                        .border(2.dp, Color.White, CircleShape)
+                        .zIndex(1f),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(text = "S", fontSize = 8.sp, color = Color.Black)
+                    Text(
+                        text = servant.rarity, 
+                        fontSize = 8.sp, 
+                        color = if (servant.rarity == "R" || servant.rarity == "SR" || servant.rarity == "SSR") Color.Black else Color.White,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
             }
 
@@ -569,7 +739,7 @@ fun ServantCard(servant: Servant, onDelete: () -> Unit) {
                             .padding(horizontal = 8.dp, vertical = 2.dp)
                     ) {
                         Text(
-                            text = "CLASS",
+                            text = servant.servantClass.uppercase(),
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
                             color = ClassTagText
@@ -627,7 +797,7 @@ fun ServantCard(servant: Servant, onDelete: () -> Unit) {
                 fontSize = 11.sp,
                 color = TagRedText,
                 fontWeight = FontWeight.Bold,
-                modifier = Modifier.clickable { onDelete() }.padding(8.dp)
+                modifier = Modifier.clickable { showDeleteDialog = true }.padding(8.dp)
             )
         }
     }

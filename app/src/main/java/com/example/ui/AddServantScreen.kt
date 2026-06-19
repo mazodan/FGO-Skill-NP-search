@@ -29,6 +29,7 @@ fun AddServantScreen(
 
     var name by remember { mutableStateOf("") }
     var iconUrl by remember { mutableStateOf("") }
+    var rarity by remember { mutableStateOf("C") }
     var servantClass by remember { mutableStateOf("") }
     var gender by remember { mutableStateOf("") }
     var attribute by remember { mutableStateOf("") }
@@ -70,6 +71,7 @@ fun AddServantScreen(
             Text("Basic Info", style = MaterialTheme.typography.titleLarge)
             OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Servant Name") }, modifier = Modifier.fillMaxWidth())
             OutlinedTextField(value = iconUrl, onValueChange = { iconUrl = it }, label = { Text("Icon URL") }, modifier = Modifier.fillMaxWidth())
+            SingleSelectDropdown(label = "Rarity", options = listOf("C", "U", "R", "SR", "SSR"), selected = rarity, onSelect = { rarity = it })
             OutlinedTextField(value = servantClass, onValueChange = { servantClass = it }, label = { Text("Class") }, modifier = Modifier.fillMaxWidth())
             
             SingleSelectDropdown(label = "Gender", options = listOf("Male", "Female", ""), selected = gender, onSelect = { gender = it })
@@ -131,7 +133,7 @@ fun AddServantScreen(
                         )
                     }
                     val servant = Servant(
-                        name = name, iconUrl = iconUrl, servantClass = servantClass,
+                        name = name, iconUrl = iconUrl, rarity = rarity, servantClass = servantClass,
                         gender = gender, attribute = attribute,
                         traits = selectedTraits, alignments = selectedAlignments,
                         noblePhantasm = np, skills = sList

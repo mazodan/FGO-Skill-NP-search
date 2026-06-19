@@ -20,7 +20,9 @@ data class SearchFilters(
     val targetAttribute: String = "",
     val targetClass: String = "",
     val targetAlignment: List<String> = emptyList(),
-    val targetTrait: List<String> = emptyList()
+    val targetTrait: List<String> = emptyList(),
+    val isOrConditional: Boolean = false,
+    val sortByRarity: Boolean = false
 )
 
 class ServantViewModel(private val repository: ServantRepository) : ViewModel() {
@@ -41,6 +43,10 @@ class ServantViewModel(private val repository: ServantRepository) : ViewModel() 
 
     val servants: StateFlow<List<Servant>> = repository.allServants
         .combine(searchFilters) { list, filters ->
+            if (filters.query.isBlank() && filters.targetGender.isBlank() && filters.targetAttribute.isBlank() && filters.targetClass.isBlank() && filters.targetAlignment.isEmpty() && filters.targetTrait.isEmpty() && !filters.sortByRarity) {
+                return@combine emptyList()
+            }
+            
             var filteredList = list
             if (filters.query.isNotBlank()) {
                 val q = filters.query.lowercase()
@@ -54,44 +60,62 @@ class ServantViewModel(private val repository: ServantRepository) : ViewModel() 
                     matchSearch(servant, q)
                 }
             }
-            if (filters.targetGender.isNotBlank()) {
-                val q = filters.targetGender.lowercase()
+            val hasBonusFilters = filters.targetGender.isNotBlank() || filters.targetAttribute.isNotBlank() || filters.targetClass.isNotBlank() || filters.targetAlignment.isNotEmpty() || filters.targetTrait.isNotEmpty()
+            
+            if (hasBonusFilters) {
                 filteredList = filteredList.filter { servant ->
-                    servant.noblePhantasm.effectiveGenders.any { it.lowercase() == q } ||
-                    servant.skills.any { skill -> skill.effectiveGenders.any { it.lowercase() == q } }
-                }
-            }
-            if (filters.targetAttribute.isNotBlank()) {
-                val q = filters.targetAttribute.lowercase()
-                filteredList = filteredList.filter { servant ->
-                    servant.noblePhantasm.effectiveAttributes.any { it.lowercase() == q } ||
-                    servant.skills.any { skill -> skill.effectiveAttributes.any { it.lowercase() == q } }
-                }
-            }
-            if (filters.targetClass.isNotBlank()) {
-                val q = filters.targetClass.lowercase()
-                filteredList = filteredList.filter { servant ->
-                    servant.noblePhantasm.effectiveClasses.any { it.lowercase() == q } ||
-                    servant.skills.any { skill -> skill.effectiveClasses.any { it.lowercase() == q } }
-                }
-            }
-            if (filters.targetAlignment.isNotEmpty()) {
-                filteredList = filteredList.filter { servant ->
-                    filters.targetAlignment.any { q ->
-                        val lowerQ = q.lowercase()
-                        servant.noblePhantasm.effectiveAlignments.any { it.lowercase() == lowerQ } ||
-                        servant.skills.any { skill -> skill.effectiveAlignments.any { it.lowercase() == lowerQ } }
+                    val conditions = mutableListOf<Boolean>()
+                    
+                    if (filters.targetGender.isNotBlank()) {
+                        val q = filters.targetGender.lowercase()
+                        conditions.add(
+                            servant.noblePhantasm.effectiveGenders.any { it.lowercase() == q } ||
+                            servant.skills.any { skill -> skill.effectiveGenders.any { it.lowercase() == q } }
+                        )
+                    }
+                    if (filters.targetAttribute.isNotBlank()) {
+                        val q = filters.targetAttribute.lowercase()
+                        conditions.add(
+                            servant.noblePhantasm.effectiveAttributes.any { it.lowercase() == q } ||
+                            servant.skills.any { skill -> skill.effectiveAttributes.any { it.lowercase() == q } }
+                        )
+                    }
+                    if (filters.targetClass.isNotBlank()) {
+                        val q = filters.targetClass.lowercase()
+                        conditions.add(
+                            servant.noblePhantasm.effectiveClasses.any { it.lowercase() == q } ||
+                            servant.skills.any { skill -> skill.effectiveClasses.any { it.lowercase() == q } }
+                        )
+                    }
+                    if (filters.targetAlignment.isNotEmpty()) {
+                        conditions.add(
+                            filters.targetAlignment.any { q ->
+                                val lowerQ = q.lowercase()
+                                servant.noblePhantasm.effectiveAlignments.any { it.lowercase() == lowerQ } ||
+                                servant.skills.any { skill -> skill.effectiveAlignments.any { it.lowercase() == lowerQ } }
+                            }
+                        )
+                    }
+                    if (filters.targetTrait.isNotEmpty()) {
+                        conditions.add(
+                            filters.targetTrait.any { q ->
+                                val lowerQ = q.lowercase()
+                                servant.noblePhantasm.effectiveTraits.any { it.lowercase() == lowerQ } ||
+                                servant.skills.any { skill -> skill.effectiveTraits.any { it.lowercase() == lowerQ } }
+                            }
+                        )
+                    }
+                    
+                    if (filters.isOrConditional) {
+                        conditions.any { it }
+                    } else {
+                        conditions.all { it }
                     }
                 }
             }
-            if (filters.targetTrait.isNotEmpty()) {
-                filteredList = filteredList.filter { servant ->
-                    filters.targetTrait.any { q ->
-                        val lowerQ = q.lowercase()
-                        servant.noblePhantasm.effectiveTraits.any { it.lowercase() == lowerQ } ||
-                        servant.skills.any { skill -> skill.effectiveTraits.any { it.lowercase() == lowerQ } }
-                    }
-                }
+            if (filters.sortByRarity) {
+                val rarityValues = mapOf("SSR" to 5, "SR" to 4, "R" to 3, "U" to 2, "C" to 1)
+                filteredList = filteredList.sortedByDescending { rarityValues[it.rarity] ?: 0 }
             }
             filteredList
         }
