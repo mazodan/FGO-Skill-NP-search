@@ -14,9 +14,18 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
+data class SearchFilters(
+    val query: String = "",
+    val targetGender: String = "",
+    val targetAttribute: String = "",
+    val targetClass: String = "",
+    val targetAlignment: List<String> = emptyList(),
+    val targetTrait: List<String> = emptyList()
+)
+
 class ServantViewModel(private val repository: ServantRepository) : ViewModel() {
 
-    val searchQuery = MutableStateFlow("")
+    val searchFilters = MutableStateFlow(SearchFilters())
 
     val traits: StateFlow<List<TraitEntity>> = repository.allTraits.stateIn(
         scope = viewModelScope,
@@ -31,12 +40,11 @@ class ServantViewModel(private val repository: ServantRepository) : ViewModel() 
     )
 
     val servants: StateFlow<List<Servant>> = repository.allServants
-        .combine(searchQuery) { list, query ->
-            if (query.isBlank()) {
-                list
-            } else {
-                val q = query.lowercase()
-                list.filter { servant ->
+        .combine(searchFilters) { list, filters ->
+            var filteredList = list
+            if (filters.query.isNotBlank()) {
+                val q = filters.query.lowercase()
+                filteredList = filteredList.filter { servant ->
                     servant.name.lowercase().contains(q) ||
                     servant.traits.any { it.lowercase().contains(q) } ||
                     servant.alignments.any { it.lowercase().contains(q) } ||
@@ -46,6 +54,46 @@ class ServantViewModel(private val repository: ServantRepository) : ViewModel() 
                     matchSearch(servant, q)
                 }
             }
+            if (filters.targetGender.isNotBlank()) {
+                val q = filters.targetGender.lowercase()
+                filteredList = filteredList.filter { servant ->
+                    servant.noblePhantasm.effectiveGenders.any { it.lowercase() == q } ||
+                    servant.skills.any { skill -> skill.effectiveGenders.any { it.lowercase() == q } }
+                }
+            }
+            if (filters.targetAttribute.isNotBlank()) {
+                val q = filters.targetAttribute.lowercase()
+                filteredList = filteredList.filter { servant ->
+                    servant.noblePhantasm.effectiveAttributes.any { it.lowercase() == q } ||
+                    servant.skills.any { skill -> skill.effectiveAttributes.any { it.lowercase() == q } }
+                }
+            }
+            if (filters.targetClass.isNotBlank()) {
+                val q = filters.targetClass.lowercase()
+                filteredList = filteredList.filter { servant ->
+                    servant.noblePhantasm.effectiveClasses.any { it.lowercase() == q } ||
+                    servant.skills.any { skill -> skill.effectiveClasses.any { it.lowercase() == q } }
+                }
+            }
+            if (filters.targetAlignment.isNotEmpty()) {
+                filteredList = filteredList.filter { servant ->
+                    filters.targetAlignment.any { q ->
+                        val lowerQ = q.lowercase()
+                        servant.noblePhantasm.effectiveAlignments.any { it.lowercase() == lowerQ } ||
+                        servant.skills.any { skill -> skill.effectiveAlignments.any { it.lowercase() == lowerQ } }
+                    }
+                }
+            }
+            if (filters.targetTrait.isNotEmpty()) {
+                filteredList = filteredList.filter { servant ->
+                    filters.targetTrait.any { q ->
+                        val lowerQ = q.lowercase()
+                        servant.noblePhantasm.effectiveTraits.any { it.lowercase() == lowerQ } ||
+                        servant.skills.any { skill -> skill.effectiveTraits.any { it.lowercase() == lowerQ } }
+                    }
+                }
+            }
+            filteredList
         }
         .stateIn(
             scope = viewModelScope,
@@ -54,6 +102,7 @@ class ServantViewModel(private val repository: ServantRepository) : ViewModel() 
         )
 
     private fun matchSearch(servant: Servant, query: String): Boolean {
+
         // Search NP
         val np = servant.noblePhantasm
         if (np.effectiveTraits.any { it.lowercase().contains(query) }) return true
@@ -74,8 +123,8 @@ class ServantViewModel(private val repository: ServantRepository) : ViewModel() 
         }
     }
 
-    fun onSearchQueryChanged(newQuery: String) {
-        searchQuery.value = newQuery
+    fun updateSearchFilters(filters: SearchFilters) {
+        searchFilters.value = filters
     }
 
     fun addServant(servant: Servant) {

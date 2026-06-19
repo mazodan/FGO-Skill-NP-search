@@ -28,16 +28,24 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.example.data.Servant
+import androidx.compose.material.icons.filled.List
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import com.example.ui.theme.*
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     viewModel: ServantViewModel,
     onAddClick: () -> Unit
 ) {
     val servants by viewModel.servants.collectAsStateWithLifecycle()
-    val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
+    val searchFilters by viewModel.searchFilters.collectAsStateWithLifecycle()
+    val traits by viewModel.traits.collectAsStateWithLifecycle()
+    val alignments by viewModel.alignments.collectAsStateWithLifecycle()
+
+    var showFilters by remember { mutableStateOf(false) }
 
     Scaffold(
         containerColor = HighDensityBg,
@@ -76,29 +84,84 @@ fun HomeScreen(
                 )
                 Spacer(modifier = Modifier.width(12.dp))
                 BasicTextField(
-                    value = searchQuery,
-                    onValueChange = viewModel::onSearchQueryChanged,
+                    value = searchFilters.query,
+                    onValueChange = { viewModel.updateSearchFilters(searchFilters.copy(query = it)) },
                     modifier = Modifier.weight(1f),
                     singleLine = true,
                     textStyle = LocalTextStyle.current.copy(fontSize = 14.sp, color = HighDensityText),
                     decorationBox = { innerTextField ->
-                        if (searchQuery.isEmpty()) {
+                        if (searchFilters.query.isEmpty()) {
                             Text("Search Traits: Dragon, Evil...", color = FilterUnselectedText, fontSize = 14.sp)
                         }
                         innerTextField()
                     }
                 )
+                IconButton(onClick = { showFilters = !showFilters }) {
+                    Icon(Icons.Filled.List, contentDescription = "Advanced Filters", tint = if (showFilters) FilterSelectedBg else FilterUnselectedText)
+                }
             }
 
             // Quick Filters
-            LazyRow(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                item { FilterChipUI(text = "Attribute", isSelected = true) }
-                item { FilterChipUI(text = "Alignment", isSelected = true) }
-                item { FilterChipUI(text = "Gender", isSelected = false) }
-                item { FilterChipUI(text = "Traits", isSelected = false) }
+            if (showFilters) {
+                Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+                    Text("Bonus Damage Targets", style = MaterialTheme.typography.labelMedium, color = FilterUnselectedText)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        FilterDropdown(
+                            label = "Attribute",
+                            options = listOf("Earth", "Man", "Sky"),
+                            selected = searchFilters.targetAttribute,
+                            onSelect = { viewModel.updateSearchFilters(searchFilters.copy(targetAttribute = it)) }
+                        )
+                        MultiFilterDropdown(
+                            label = "Alignment",
+                            options = alignments.map { it.name },
+                            selected = searchFilters.targetAlignment,
+                            searchable = true,
+                            onToggle = { opt -> 
+                                val newList = if (searchFilters.targetAlignment.contains(opt)) {
+                                    searchFilters.targetAlignment - opt
+                                } else {
+                                    searchFilters.targetAlignment + opt
+                                }
+                                viewModel.updateSearchFilters(searchFilters.copy(targetAlignment = newList)) 
+                            },
+                            onClear = { viewModel.updateSearchFilters(searchFilters.copy(targetAlignment = emptyList())) }
+                        )
+                        FilterDropdown(
+                            label = "Gender",
+                            options = listOf("Male", "Female"),
+                            selected = searchFilters.targetGender,
+                            onSelect = { viewModel.updateSearchFilters(searchFilters.copy(targetGender = it)) }
+                        )
+                        MultiFilterDropdown(
+                            label = "Traits",
+                            options = traits.map { it.name },
+                            selected = searchFilters.targetTrait,
+                            searchable = true,
+                            onToggle = { opt ->
+                                val newList = if (searchFilters.targetTrait.contains(opt)) {
+                                    searchFilters.targetTrait - opt
+                                } else {
+                                    searchFilters.targetTrait + opt
+                                }
+                                viewModel.updateSearchFilters(searchFilters.copy(targetTrait = newList))
+                            },
+                            onClear = { viewModel.updateSearchFilters(searchFilters.copy(targetTrait = emptyList())) }
+                        )
+                        // Simple text input for Class so it doesn't need to read all class values
+                        FilterDropdown(
+                            label = "Class",
+                            options = listOf("Saber", "Archer", "Lancer", "Rider", "Caster", "Assassin", "Berserker", "Ruler", "Avenger", "Alter Ego", "Moon Cancer", "Foreigner", "Pretender", "Beast"),
+                            selected = searchFilters.targetClass,
+                            onSelect = { viewModel.updateSearchFilters(searchFilters.copy(targetClass = it)) }
+                        )
+                    }
+                }
             }
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -107,7 +170,7 @@ fun HomeScreen(
             if (servants.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text(
-                        text = if (searchQuery.isNotEmpty()) "No servants found." else "No servants defined yet.",
+                        text = if (searchFilters.query.isNotEmpty() || showFilters) "No servants found matching criteria." else "No servants defined yet.",
                         style = MaterialTheme.typography.bodyLarge,
                         color = FilterUnselectedText
                     )
@@ -124,6 +187,106 @@ fun HomeScreen(
                         )
                     }
                 }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun FilterDropdown(
+    label: String,
+    options: List<String>,
+    selected: String,
+    searchable: Boolean = false,
+    onSelect: (String) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+    var searchQuery by remember { mutableStateOf("") }
+    
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = !expanded }
+    ) {
+        Box(
+            modifier = Modifier
+                .background(
+                    color = if (selected.isNotEmpty()) FilterSelectedBg else Color.White,
+                    shape = RoundedCornerShape(12.dp)
+                )
+                .border(
+                    width = 1.dp,
+                    color = if (selected.isNotEmpty()) FilterSelectedBg else FilterUnselectedBorder,
+                    shape = RoundedCornerShape(12.dp)
+                )
+                .padding(horizontal = 12.dp, vertical = 6.dp)
+                .menuAnchor(MenuAnchorType.PrimaryNotEditable, true)
+                .clickable { expanded = true }
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = if (selected.isNotEmpty()) "$label: $selected" else label,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = if (selected.isNotEmpty()) FilterSelectedText else FilterUnselectedText
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(text = "▼", fontSize = 10.sp, color = if (selected.isNotEmpty()) FilterSelectedText else FilterUnselectedText)
+            }
+        }
+        
+        ExposedDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = {
+                expanded = false
+                searchQuery = ""
+            }
+        ) {
+            if (searchable) {
+                Box(modifier = Modifier.padding(8.dp)) {
+                    BasicTextField(
+                        value = searchQuery,
+                        onValueChange = { searchQuery = it },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(Color.White, RoundedCornerShape(8.dp))
+                            .border(1.dp, Color.LightGray, RoundedCornerShape(8.dp))
+                            .padding(8.dp),
+                        singleLine = true,
+                        decorationBox = { innerTextField ->
+                            if (searchQuery.isEmpty()) {
+                                Text("Search...", color = Color.Gray)
+                            }
+                            innerTextField()
+                        }
+                    )
+                }
+            }
+            
+            DropdownMenuItem(
+                text = { Text("Any (Clear)") },
+                onClick = {
+                    onSelect("")
+                    expanded = false
+                    searchQuery = ""
+                }
+            )
+            
+            val filteredOptions = if (searchable && searchQuery.isNotBlank()) {
+                options.filter { it.contains(searchQuery, ignoreCase = true) }
+            } else {
+                options
+            }
+            
+            filteredOptions.forEach { opt ->
+                DropdownMenuItem(
+                    text = { Text(opt) },
+                    onClick = {
+                        onSelect(opt)
+                        expanded = false
+                        searchQuery = ""
+                    }
+                )
             }
         }
     }
@@ -154,6 +317,115 @@ fun FilterChipUI(text: String, isSelected: Boolean) {
             if (isSelected) {
                 Spacer(modifier = Modifier.width(4.dp))
                 Text(text = "▼", fontSize = 10.sp, color = FilterSelectedText)
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun MultiFilterDropdown(
+    label: String,
+    options: List<String>,
+    selected: List<String>,
+    searchable: Boolean = false,
+    onToggle: (String) -> Unit,
+    onClear: () -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+    var searchQuery by remember { mutableStateOf("") }
+    val displayValue = if (selected.isNotEmpty()) selected.joinToString(", ") else ""
+    
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = !expanded }
+    ) {
+        Box(
+            modifier = Modifier
+                .background(
+                    color = if (selected.isNotEmpty()) FilterSelectedBg else Color.White,
+                    shape = RoundedCornerShape(12.dp)
+                )
+                .border(
+                    width = 1.dp,
+                    color = if (selected.isNotEmpty()) FilterSelectedBg else FilterUnselectedBorder,
+                    shape = RoundedCornerShape(12.dp)
+                )
+                .padding(horizontal = 12.dp, vertical = 6.dp)
+                .menuAnchor(MenuAnchorType.PrimaryNotEditable, true)
+                .clickable { expanded = true }
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = if (selected.isNotEmpty()) "$label: $displayValue" else label,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = if (selected.isNotEmpty()) FilterSelectedText else FilterUnselectedText,
+                    maxLines = 1
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(text = "▼", fontSize = 10.sp, color = if (selected.isNotEmpty()) FilterSelectedText else FilterUnselectedText)
+            }
+        }
+        
+        ExposedDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = {
+                expanded = false
+                searchQuery = ""
+            }
+        ) {
+            if (searchable) {
+                Box(modifier = Modifier.padding(8.dp)) {
+                    BasicTextField(
+                        value = searchQuery,
+                        onValueChange = { searchQuery = it },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(Color.White, RoundedCornerShape(8.dp))
+                            .border(1.dp, Color.LightGray, RoundedCornerShape(8.dp))
+                            .padding(8.dp),
+                        singleLine = true,
+                        decorationBox = { innerTextField ->
+                            if (searchQuery.isEmpty()) {
+                                Text("Search...", color = Color.Gray)
+                            }
+                            innerTextField()
+                        }
+                    )
+                }
+            }
+            
+            DropdownMenuItem(
+                text = { Text("Any (Clear)") },
+                onClick = {
+                    onClear()
+                    expanded = false
+                    searchQuery = ""
+                }
+            )
+            
+            val filteredOptions = if (searchable && searchQuery.isNotBlank()) {
+                options.filter { it.contains(searchQuery, ignoreCase = true) }
+            } else {
+                options
+            }
+            
+            filteredOptions.forEach { opt ->
+                val isSelected = selected.contains(opt)
+                DropdownMenuItem(
+                    text = { 
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Checkbox(checked = isSelected, onCheckedChange = null)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(opt)
+                        }
+                    },
+                    onClick = {
+                        onToggle(opt)
+                        searchQuery = ""
+                    }
+                )
             }
         }
     }
